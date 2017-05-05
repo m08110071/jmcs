@@ -4,6 +4,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="catalogProductMigrate" xsi:type="object">ProSpecs\Catalog\Console\Command\ProductMigrateCommand</item>
+                <item name="catalogProductAttributeOptionsMigrate" xsi:type="object">ProSpecs\Catalog\Console\Command\AttributeOptionsMigrateCommand</item>
             </argument>
         </arguments>
     </type>

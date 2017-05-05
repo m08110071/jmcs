@@ -8,7 +8,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Magento\Framework\App\State as AppState;
 
-class ProductMigrateCommand extends Command
+class AttributeOptionsMigrateCommand extends Command
 {
     const LINK_TYPE = 'related';
 
@@ -16,11 +16,7 @@ class ProductMigrateCommand extends Command
 
     const DEFAULT_FILENAME = 'RELATED_COMMODITY_A.csv';
 
-    const SKU = 'ISBN10/SKU';
-    const NAME = 'Title';
     const BRAND = 'Brand/Label/Publisher';
-    const CATEGORY = 'Product Type/Category';
-    const UPC = 'UPC';
 
     /**
      * @var \Magento\Catalog\Model\Product
@@ -45,6 +41,12 @@ class ProductMigrateCommand extends Command
     /** @var  OutputInterface */
     protected $_output;
 
+    protected $_eavSetupFactory;
+    protected $_storeManager;
+    protected $_attributeFactory;
+
+    protected $_options = [];
+
 
 
     protected $_attributeLabelToId = [];
@@ -52,21 +54,19 @@ class ProductMigrateCommand extends Command
     protected $_headersIndex = [];
 
     protected $_fields = [
-        self::SKU,
-        self::NAME,
-//        self::BRAND,
-//        self::CATEGORY,
-//        self::UPC
+        self::BRAND
     ];
 
     public function __construct(
         AppState $appState,
-        \Magento\Catalog\Model\ProductFactory $productFactory,
         \Magento\Framework\File\Csv $csvProcessor,
         \Magento\Framework\App\Filesystem\DirectoryList $directoryList,
         \Magento\Catalog\Api\ProductRepositoryInterface $productRepositoryInterface,
         \Magento\Catalog\Model\ResourceModel\Product\Link $productLinkResource,
         \Magento\Catalog\Model\Product\Attribute\Repository $productAttributeRepository,
+        \Magento\Eav\Setup\EavSetupFactory $eavSetupFactory,
+        \Magento\Store\Model\StoreManagerInterface $storeManager,
+        \Magento\Catalog\Model\ResourceModel\Eav\Attribute $attributeFactory,
         $name = null
     ){
         $this->appState = $appState;
@@ -75,7 +75,9 @@ class ProductMigrateCommand extends Command
         $this->_productRepository = $productRepositoryInterface;
         $this->_productLinkResource = $productLinkResource;
         $this->_productAttributeRepository = $productAttributeRepository;
-        $this->_productModel = $productFactory;
+        $this->_eavSetupFactory = $eavSetupFactory;
+        $this->_storeManager = $storeManager;
+        $this->_attributeFactory = $attributeFactory;
 
         parent::__construct($name);
     }
@@ -98,8 +100,8 @@ class ProductMigrateCommand extends Command
 
     protected function configure()
     {
-        $this->setName('catalog:product:migrate')
-            ->setDescription('Migrate product')
+        $this->setName('catalog:product-attribute-option:migrate')
+            ->setDescription('Migrate product attribute option')
             ->setDefinition($this->getInputList());
         parent::configure();
     }
@@ -110,7 +112,7 @@ class ProductMigrateCommand extends Command
 
         $this->_output = $output;
 
-        $output->writeln('<info>Starting To Migrate Product Data</info>');
+        $output->writeln('<info>Starting To Migrate Product Attribute Options</info>');
 
         $migrateData = $this->loadFileData($input);
 
@@ -124,157 +126,43 @@ class ProductMigrateCommand extends Command
                     $output->writeln('<error>'. $error .'</error>');
                 }
             }else{
+
+                $this->_options = array_keys($this->loadAttributeOptions('manufacturer'));
+
                 foreach($migrateData as $rowNum =>  $rowData){
 
-                    if($this->isValidData($rowData, $rowNum + 2, $output)){
-                        $this->saveProduct($rowData, $rowNum + 2);
+                    $brandIndex = $this->_headersIndex[self::BRAND];
+
+                    if(
+                        $rowData[$brandIndex] &&
+                        !in_array($rowData[$brandIndex], $this->_options)
+                    ){
+                        $this->_options[] = $rowData[$brandIndex];
                     }
                 }
+
+                $attributeInfo=$this->_attributeFactory->getCollection()
+                    ->addFieldToFilter('attribute_code',['eq'=>"manufacturer"])
+                    ->getFirstItem();
+                $attribute_id = $attributeInfo->getAttributeId();
+
+                $option=array();
+                $option['attribute_id'] = $attributeInfo->getAttributeId();
+                foreach($this->_options as $key=>$value){
+                    $option['value'][$value][0]=$value;
+                    foreach($this->_storeManager->getStores() as $store){
+                        $option['value'][$value][$store->getId()] = $value;
+                    }
+                }
+
+                $eavSetup = $this->_eavSetupFactory->create();
+                $eavSetup->addAttributeOption($option);
             }
         }else{
             $output->writeln('<error>'. $migrateData .'</error>');
         }
 
         $output->writeln('<info>The Product Migration Process Has Finished</info>');
-    }
-
-    /**
-     * @param $rowData
-     * @param $rowNum
-     * @return $this
-     */
-    protected function saveProduct($rowData, $rowNum){
-
-        $data = $this->prepareData($rowData);
-
-        if($productId = $this->isExitedSku($data[self::SKU])){
-            /** @var \Magento\Catalog\Model\Product $product */
-            $product = $this->_productModel->create()->load($productId);
-        }else{
-            /** @var \Magento\Catalog\Model\Product $product */
-            $product = $this->_productModel->create();
-            $product->setSku($data[self::SKU]); // Set your sku here
-        }
-
-        $product->setStoreId(0);
-
-        $product->setName($data[self::NAME]); // Name of Product
-        $product->setWebsiteIds([1]);
-        $product->setAttributeSetId(4); // Attribute set id
-        $product->setStatus(1); // Status on product enabled/ disabled 1/0
-        $product->setWeight(10); // weight of product
-        $product->setVisibility(4); // visibilty of product (catalog / search / catalog, search / Not visible individually)
-        $product->setTaxClassId(0); // Tax class id
-        $product->setTypeId('simple'); // type of product (simple/virtual/downloadable/configurable)
-        $product->setPrice(100); // price of product
-        $product->setCategoryIds([3]);
-        $product->setStockData(
-            array(
-                'use_config_manage_stock' => 0,
-                'manage_stock' => 1,
-                'is_in_stock' => 1,
-                'qty' => 999999999
-            )
-        );
-
-        try{
-            $product->save();
-        }catch (\Exception $e){
-            $this->showError('[ERROR][' . $rowNum . ']' . $e->getMessage());
-        }
-
-        $this->showSuccess('[SUCCESS][' . $rowNum . '][' . $data[self::SKU] . ']');
-
-        return $this;
-    }
-
-    /**
-     * @param $rowData
-     * @return array
-     */
-    public function prepareData($rowData){
-        $result = [];
-
-        foreach($this->_headersIndex as $columnName => $index){
-            $result[$columnName] = $rowData[$index];
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param $rowData
-     * @param $rowNum
-     * @return bool
-     */
-    protected function isValidData($rowData, $rowNum){
-        $errors = $this->validateRowData($rowData);
-
-        if(count($errors)){
-            foreach($errors as $error){
-                $this->showError('[' . $rowNum . '] ' .$error);
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * @param $rowData
-     * @return array
-     */
-    protected function validateRowData($rowData){
-
-        $errors = [];
-
-        $skuIndex = $this->_headersIndex[self::SKU];
-        $nameIndex = $this->_headersIndex[self::NAME];
-//        $brandIndex = $this->_headersIndex[self::BRAND];
-//        $categoryIndex = $this->_headersIndex[self::CATEGORY];
-//        $upcIndex = $this->_headersIndex[self::UPC];
-
-        foreach($this->_headersIndex as $index){
-            if(!isset($rowData[$index]))
-                return ['Data is invalid'];
-        }
-
-        if($rowData[$skuIndex] == ''){
-            $errors[] = 'Column: ' . self::SKU . ', is required field';
-        }
-
-        if($rowData[$nameIndex] == ''){
-            $errors[] = 'Column: ' . self::NAME . ', is required field';
-        }
-
-//        if($rowData[$brandIndex] == ''){
-//            $errors[] = 'Column: ' . self::BRAND . ', is required field';
-//        }else{
-//            if(!$this->getAttributeOptionIdByLabel('', $rowData[$brandIndex])){
-//                $errors[] = 'Column: ' . self::BRAND . ', value "' . $rowData[$brandIndex] . '" is invalid';
-//            }
-//        }
-//
-//        if($rowData[$upcIndex] == ''){
-//            $errors[] = 'Column: ' . self::UPC . ', is required field';
-//        }
-
-        return $errors;
-    }
-
-    /**
-     * @param $sku
-     * @return bool|int|null
-     */
-    protected function isExitedSku($sku){
-        try{
-            $product = $this->_productRepository->get($sku);
-        }catch (\Magento\Framework\Exception\NoSuchEntityException $e){
-            return false;
-        }
-
-        return $product->getId();
     }
 
     /**
@@ -287,9 +175,9 @@ class ProductMigrateCommand extends Command
             $result = [];
 
             $options = $this->_productAttributeRepository->get($attributeCode)->getOptions();
-            /** @var \Magento\Eav\Api\Data\AttributeInterface $option */
+            /** @var \Magento\Eav\Api\Data\AttributeOptionInterface $option */
             foreach($options as $option){
-                $result[$option->getlabel()] = $option->getValue();
+                $result[$option->getLabel()] = $option->getValue();
             }
 
             $this->_attributeLabelToId[$attributeCode] = $result;
