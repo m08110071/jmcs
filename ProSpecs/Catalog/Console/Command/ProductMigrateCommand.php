@@ -158,13 +158,14 @@ class ProductMigrateCommand extends Command
         $data = $this->prepareData($rowData);
 
         if($productId = $this->isExitedSku($data[self::SKU])){
-            /** @var \Magento\Catalog\Model\Product $product */
-            $product = $this->_productModel->create()->load($productId);
-        }else{
-            /** @var \Magento\Catalog\Model\Product $product */
-            $product = $this->_productModel->create();
-            $product->setSku($data[self::SKU]); // Set your sku here
+            $this->showSuccess('[DUPLICATE][' . $rowNum . '][' . $data[self::SKU] . ']');
+
+            return $this;
         }
+
+        /** @var \Magento\Catalog\Model\Product $product */
+        $product = $this->_productModel->create();
+        $product->setSku($data[self::SKU]); // Set your sku here
 
         $product->setStoreId(0);
 
