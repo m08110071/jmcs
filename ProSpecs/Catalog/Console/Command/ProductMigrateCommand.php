@@ -16,11 +16,16 @@ class ProductMigrateCommand extends Command
 
     const DEFAULT_FILENAME = 'RELATED_COMMODITY_A.csv';
 
-    const SKU = 'ISBN10/SKU';
+    const SKU = 'SKU';
     const NAME = 'Title';
-    const BRAND = 'Brand/Label/Publisher';
-    const CATEGORY = 'Product Type/Category';
+    const NAME2 = 'Title2';
+    const PRICE = 'Buyer Price';
+    const BRAND = 'Brand';
     const UPC = 'UPC';
+    const MPN = 'MPN';
+    const LENGTH = 'Length';
+    const WIDTH = 'Width';
+    const HEIGHT = 'Height';
 
     /**
      * @var \Magento\Catalog\Model\Product
@@ -54,9 +59,14 @@ class ProductMigrateCommand extends Command
     protected $_fields = [
         self::SKU,
         self::NAME,
-//        self::BRAND,
-//        self::CATEGORY,
-//        self::UPC
+        self::NAME2,
+        self::PRICE,
+        self::BRAND,
+        self::UPC,
+        self::MPN,
+        self::LENGTH,
+        self::WIDTH,
+        self::HEIGHT
     ];
 
     public function __construct(
@@ -158,16 +168,22 @@ class ProductMigrateCommand extends Command
 
         $product->setStoreId(0);
 
-        $product->setName($data[self::NAME]); // Name of Product
+        $product->setName($data[self::NAME] . ', ' . $data[self::NAME2]); // Name of Product
         $product->setWebsiteIds([1]);
-        $product->setAttributeSetId(4); // Attribute set id
-        $product->setStatus(1); // Status on product enabled/ disabled 1/0
-        $product->setWeight(10); // weight of product
-        $product->setVisibility(4); // visibilty of product (catalog / search / catalog, search / Not visible individually)
-        $product->setTaxClassId(0); // Tax class id
-        $product->setTypeId('simple'); // type of product (simple/virtual/downloadable/configurable)
-        $product->setPrice(100); // price of product
-        $product->setCategoryIds([3]);
+        $product->setAttributeSetId(4);
+        $product->setStatus(1);
+        $product->setWeight(10);
+        $product->setWeight($data[self::LENGTH]);
+        $product->setWeight($data[self::WIDTH]);
+        $product->setWeight($data[self::HEIGHT]);
+        $product->setUpc($data[self::UPC]);
+        $product->setMpn($data[self::MPN]);
+        $product->setBrand($data[self::BRAND]);
+        $product->setVisibility(4);
+        $product->setTaxClassId(0);
+        $product->setTypeId('simple');
+        $product->setPrice($data[self::PRICE]);
+        //$product->setCategoryIds([3]);
         $product->setStockData(
             array(
                 'use_config_manage_stock' => 0,
