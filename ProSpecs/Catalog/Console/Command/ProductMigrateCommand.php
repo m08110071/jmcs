@@ -168,14 +168,14 @@ class ProductMigrateCommand extends Command
 
         $product->setStoreId(0);
 
-        $product->setName($data[self::NAME] . ', ' . $data[self::NAME2]); // Name of Product
+        $product->setName($data[self::NAME] . ($data[self::NAME2]? ', ' . $data[self::NAME2] : '')); // Name of Product
         $product->setWebsiteIds([1]);
         $product->setAttributeSetId(4);
         $product->setStatus(1);
         $product->setWeight(10);
-        $product->setWeight($data[self::LENGTH]);
-        $product->setWeight($data[self::WIDTH]);
-        $product->setWeight($data[self::HEIGHT]);
+        $product->setLength($data[self::LENGTH]);
+        $product->setWidth($data[self::WIDTH]);
+        $product->setHeight($data[self::HEIGHT]);
         $product->setUpc($data[self::UPC]);
         $product->setMpn($data[self::MPN]);
         $product->setBrand($data[self::BRAND]);
