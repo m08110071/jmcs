@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="ingram" translate="label" sortOrder="500">
+            <label>Ingram Sync</label>
+        </tab>
+
+        <section id="ingram_inventory" showInDefault="1" type="text" translate="label" sortOrder="10000">
+            <label>Inventory</label>
+            <tab>ingram</tab>
+            <resource>Magento_Backend::admin</resource>
+            <group id="ftp" translate="label" type="text" sortOrder="1" showInDefault="1" >
+                <label>FTP Configuration</label>
+                <field id="host" translate="label comment" type="text" sortOrder="10" showInDefault="1">
+                    <label>Host</label>
+                </field>
+                <field id="user" translate="label comment" type="text" sortOrder="20" showInDefault="1" >
+                    <label>User</label>
+                </field>
+                <field id="password" translate="label comment" type="password" sortOrder="30" showInDefault="1" >
+                    <label>Password</label>
+                </field>
+                <field id="host" translate="label comment" type="text" sortOrder="40" showInDefault="1" >
+                    <label>Host</label>
+                </field>
+                <field id="path" translate="label comment" type="text" sortOrder="50" showInDefault="1" >
+                    <label>Path</label>
+                </field>
+                <field id="file_name" translate="label comment" type="text" sortOrder="60" showInDefault="1" >
+                    <label>Filename</label>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
